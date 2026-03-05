@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红绿贴纸实时脑暴工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .board-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .board-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        
+        .section-header {
+            padding: 12px 20px;
+            border-radius: 12px 12px 0 0;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-header.red {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            color: white;
+        }
+        
+        .section-header.green {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            color: white;
+        }
+        
+        .section-count {
+            background: rgba(255, 255, 255, 0.3);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 14px;
+        }
+        
+        .board {
+            flex: 1;
+            padding: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-content: flex-start;
+            overflow-y: auto;
+            max-height: calc(100vh - 250px);
+            border-radius: 0 0 12px 12px;
+        }
+        
+        .board.red {
+            background: rgba(255, 107, 107, 0.1);
+            border: 2px solid rgba(255, 107, 107, 0.3);
+            border-top: none;
+        }
+        
+        .board.green {
+            background: rgba(81, 207, 102, 0.1);
+            border: 2px solid rgba(81, 207, 102, 0.3);
+            border-top: none;
+        }
+        
+        .sticker {
+            width: 100%;
+            max-width: 280px;
+            min-height: 80px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            word-wrap: break-word;
+            position: relative;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        .sticker.red {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            color: white;
+        }
+        
+        .sticker.green {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            color: white;
+        }
+        
+        .sticker-content {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+            padding-right: 40px;
+        }
+        
+        .sticker-time {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        
+        .sticker-type {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .input-area {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .text-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .text-input:focus {
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .btn-red {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            color: white;
+        }
+        
+        .btn-red:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(238, 90, 90, 0.4);
+        }
+        
+        .btn-green {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+            color: white;
+        }
+        
+        .btn-green:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(64, 192, 87, 0.4);
+        }
+        
+        .btn-export {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: rgba(0, 0, 0, 0.4);
+            font-size: 14px;
+            padding: 30px;
+            width: 100%;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+        
+        .legend-color.red {
+            background: #ff6b6b;
+        }
+        
+        .legend-color.green {
+            background: #51cf66;
+        }
+        
+        .error-toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .board-container {
+                flex-direction: column;
+            }
+            
+            .board {
+                max-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 红绿贴纸实时脑暴工具</h1>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color red"></div>
+                <span>痛点</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color green"></div>
+                <span>经验</span>
+            </div>
+        </div>
+        <div id="connectionStatus" class="connection-status disconnected">
+            连接中...
+        </div>
+    </div>
+    
+    <div class="board-container">
+        <div class="board-section">
+            <div class="section-header red">
+                🟥 痛点区域
+                <span id="redCount" class="section-count">0</span>
+            </div>
+            <div id="redBoard" class="board red">
+                <div class="empty-message">暂无痛点贴纸</div>
+            </div>
+        </div>
+        
+        <div class="board-section">
+            <div class="section-header green">
+                🟩 经验区域
+                <span id="greenCount" class="section-count">0</span>
+            </div>
+            <div id="greenBoard" class="board green">
+                <div class="empty-message">暂无经验贴纸</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-area">
+        <div class="input-container">
+            <input type="text" id="contentInput" class="text-input" placeholder="输入您的想法..." maxlength="200">
+            <button class="btn btn-red" onclick="submitSticker('red')">🟥 提交红色贴纸</button>
+            <button class="btn btn-green" onclick="submitSticker('green')">🟩 提交绿色贴纸</button>
+            <button class="btn btn-export" onclick="exportData()">📥 导出成果</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+        const redBoard = document.getElementById('redBoard');
+        const greenBoard = document.getElementById('greenBoard');
+        const contentInput = document.getElementById('contentInput');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const redCount = document.getElementById('redCount');
+        const greenCount = document.getElementById('greenCount');
+        
+        let stickers = [];
+        
+        socket.on('connect', () => {
+            connectionStatus.textContent = '已连接';
+            connectionStatus.className = 'connection-status connected';
+        });
+        
+        socket.on('disconnect', () => {
+            connectionStatus.textContent = '已断开连接';
+            connectionStatus.className = 'connection-status disconnected';
+        });
+        
+        socket.on('init_stickers', (data) => {
+            stickers = data.stickers;
+            renderBoard();
+        });
+        
+        socket.on('new_sticker', (sticker) => {
+            stickers.push(sticker);
+            addStickerToBoard(sticker);
+            updateCounts();
+        });
+        
+        socket.on('error', (data) => {
+            showToast(data.message);
+        });
+        
+        function submitSticker(color) {
+            const content = contentInput.value.trim();
+            if (!content) {
+                showToast('请输入内容');
+                return;
+            }
+            socket.emit('submit_sticker', { content, color });
+            contentInput.value = '';
+        }
+        
+        function renderBoard() {
+            redBoard.innerHTML = '';
+            greenBoard.innerHTML = '';
+            
+            const redStickers = stickers.filter(s => s.color === 'red');
+            const greenStickers = stickers.filter(s => s.color === 'green');
+            
+            if (redStickers.length === 0) {
+                redBoard.innerHTML = '<div class="empty-message">暂无痛点贴纸</div>';
+            } else {
+                redStickers.forEach(sticker => addStickerToBoard(sticker));
+            }
+            
+            if (greenStickers.length === 0) {
+                greenBoard.innerHTML = '<div class="empty-message">暂无经验贴纸</div>';
+            } else {
+                greenStickers.forEach(sticker => addStickerToBoard(sticker));
+            }
+            
+            updateCounts();
+        }
+        
+        function addStickerToBoard(sticker) {
+            const board = sticker.color === 'red' ? redBoard : greenBoard;
+            const emptyMessage = board.querySelector('.empty-message');
+            if (emptyMessage) {
+                emptyMessage.remove();
+            }
+            
+            const stickerEl = document.createElement('div');
+            stickerEl.className = `sticker ${sticker.color}`;
+            stickerEl.innerHTML = `
+                <span class="sticker-type">${sticker.color === 'red' ? '痛点' : '经验'}</span>
+                <div class="sticker-content">${escapeHtml(sticker.content)}</div>
+                <div class="sticker-time">${sticker.timestamp}</div>
+            `;
+            board.appendChild(stickerEl);
+            stickerEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+        
+        function updateCounts() {
+            const redStickers = stickers.filter(s => s.color === 'red');
+            const greenStickers = stickers.filter(s => s.color === 'green');
+            redCount.textContent = redStickers.length;
+            greenCount.textContent = greenStickers.length;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function showToast(message) {
+            const existingToast = document.querySelector('.error-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        function exportData() {
+            if (stickers.length === 0) {
+                showToast('暂无数据可导出');
+                return;
+            }
+            
+            fetch('/export')
+                .then(response => response.json())
+                .then(data => {
+                    const blob = new Blob(['\ufeff' + data.data], { type: 'text/csv;charset=utf-8' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(() => {
+                    showToast('导出失败，请重试');
+                });
+        }
+        
+        contentInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                submitSticker('red');
+            }
+        });
+    </script>
+</body>
+</html>
