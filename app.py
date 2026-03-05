@@ -4,17 +4,19 @@ from flask_socketio import SocketIO, emit
 from datetime import datetime
 import csv
 import io
+from supabase import create_client, Client
 
 app = Flask(__name__)
 
-# 使用环境变量或默认密钥
+# Supabase 配置
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://xogphwdskolzyjznzhbk.supabase.co')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY', 'sb_publishable_Avdq7NTLUrtcfGPtJUx3NQ_ESIjMxJm')
+
+# 初始化 Supabase 客户端
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'brainstorm-secret-key-prod')
-
-# 配置SocketIO，启用CORS（不使用eventlet以避免兼容性问题）
 socketio = SocketIO(app, cors_allowed_origins="*")
-
-# 存储贴纸数据（注意：免费平台重启后会重置）
-stickers = []
 
 @app.route('/')
 def index():
@@ -27,6 +29,10 @@ def health():
 
 @app.route('/export')
 def export():
+    # 从 Supabase 获取所有贴纸
+    response = supabase.table('stickers').select('*').execute()
+    stickers = response.data
+    
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['类型', '内容', '时间'])
@@ -43,6 +49,9 @@ def export():
 
 @socketio.on('connect')
 def handle_connect():
+    # 从 Supabase 获取所有贴纸
+    response = supabase.table('stickers').select('*').order('id').execute()
+    stickers = response.data
     emit('init_stickers', {'stickers': stickers})
 
 @socketio.on('disconnect')
@@ -58,16 +67,19 @@ def handle_submit_sticker(data):
         emit('error', {'message': '请输入内容'})
         return
     
-    sticker = {
-        'id': len(stickers) + 1,
+    # 创建贴纸数据
+    sticker_data = {
         'content': content,
         'color': color,
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     
-    stickers.append(sticker)
-    emit('new_sticker', sticker, broadcast=True)
+    # 保存到 Supabase
+    response = supabase.table('stickers').insert(sticker_data).execute()
+    
+    if response.data:
+        sticker = response.data[0]
+        emit('new_sticker', sticker, broadcast=True)
 
 if __name__ == '__main__':
-    # 本地开发环境
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
